@@ -45,8 +45,9 @@ def get_events(path : str):
 
 if __name__ == "__main__":
 
-    raw = mne.io.read_raw_edf('../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.edf')
-    get_events('small')
+    raw = mne.io.read_raw_edf('../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.edf'
+                              , preload = True)
+    # get_events('small')
 
 
 
@@ -59,8 +60,15 @@ if __name__ == "__main__":
     print(raw)
     print(raw.info)
     #
-    print(raw.info['ch_names'])  # 打印所有通道名称
-    print(raw.get_channel_types())  # 获取并打印所有通道的类型
+    # print(raw.info['ch_names'])  # 打印所有通道名称
+    # print(raw.get_channel_types())  # 获取并打印所有通道的类型
+
+    montage = mne.channels.make_standard_montage('standard_1020')
+    raw.set_montage(montage, on_missing='ignore')
+
+    raw.filter(0.1,30)
+
+
 
     # raw.compute_psd(fmax=50).plot(picks="data", exclude="bads", amplitude=False)
     # raw.plot(duration=5, n_channels=30)
