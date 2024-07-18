@@ -2,6 +2,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from pathlib import Path
 import mne
+import numpy as np
 
 eg_channels = ['Cz', 'Fz', 'Fp1', 'F7', 'F3', 'FC1', 'C3', 'FC5', 'FT9', 'T7', 'CP5', 'CP1', 'P3', 'P7', 'PO9',
                'O1', 'Pz', 'Oz', 'O2', 'PO10', 'P8', 'P4', 'CP2', 'CP6', 'T8', 'FT10', 'FC6', 'C4', 'FC2', 'F4',
@@ -27,8 +28,8 @@ class Events:
         for directory in directories:
             gaze_files = [f for f in directory.iterdir() if 'gaze' in f.name]
             if not gaze_files:
-                continue  # Skip if no gaze files found
-            gaze_file = gaze_files[0]  # Assuming only one gaze file per directory
+                continue
+            gaze_file = gaze_files[0]
             self.process_gaze_file(gaze_file, directory)
 
     def process_gaze_file(self, gaze_file: Path, directory: Path):
@@ -48,7 +49,7 @@ class Events:
             print(f"No valid events found in {gaze_file}")
 
     def extract_events(self, click_data: pd.DataFrame) -> pd.DataFrame:
-        columns = ["Time Of Experiment", "Duration", "TimeStampStart", "TimeStampEnd"]
+        columns = ["Relative Time", "Time Of Experiment", "Duration", "TimeStampStart", "TimeStampEnd"]
         events = pd.DataFrame(columns=columns)
         for index in range(len(click_data) - 1):
             start_time = click_data.iloc[index, 1]
@@ -63,13 +64,14 @@ class Events:
 
             delta_start = start_timestamp + timedelta(seconds=start_time)
             delta_end = delta_start + timedelta(seconds=duration)
-
             events.loc[index] = ({
+                "Relative Time": 0,
                 "Time Of Experiment": start_time,
                 "Duration": f'{duration:.2f}',
                 "TimeStampStart": delta_start.strftime("%H:%M:%S.%f")[:-3],
                 "TimeStampEnd": delta_end.strftime("%H:%M:%S.%f")[:-3]
             })
+        events["Relative Time"] = events["Time Of Experiment"] - events["Time Of Experiment"].iloc[0]
         return events
 
     # TODO
@@ -112,5 +114,25 @@ class Events:
             start_time = event_duration[1]['start_of_the_event(EEG data sec)']
             end_time = event_duration[1]['end_of_the_event(EEG data sec)']
             raw_segment = raw.copy().crop(tmin=start_time, tmax=end_time)
-            raw_segment.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_raw.fif', overwrite=True)
+            raw_segment.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_with_blank_raw.fif', overwrite=True)
+
+            for index, data in enumerate(self.experiment_data.items()):
+                name, ex_data = data
+                sfreq = raw_segment.info['sfreq']
+                segment_duration = 2
+                segment_samples = int(segment_duration * sfreq)
+                relative_times = ex_data['Relative Time']
+                segments = []
+                for times in relative_times:
+                    start_sample = int((times+2) * sfreq)
+                    end_sample = start_sample + segment_samples
+                    if end_sample <= raw_segment.n_times:
+                        segment_data, _ = raw_segment[:, start_sample:end_sample]
+                        segments.append(segment_data)
+                combined_segments = np.concatenate(segments, axis=1)
+                info = raw_segment.info.copy()
+                new_raw = mne.io.RawArray(combined_segments, info)
+                new_raw.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_without_blank_raw.fif',
+                                 overwrite=True)
+
 
