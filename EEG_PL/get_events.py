@@ -108,7 +108,7 @@ class Events:
         raw = mne.io.read_raw_edf(self.eeg_edf, preload=True)
         raw.pick(eg_channels)
         events_duration = self.create_start_stop_df_for_events(start_time)
-
+        all_data = []
         for event_duration in events_duration.iterrows():
             directory_name = event_duration[1]['directory']
             start_time = event_duration[1]['start_of_the_event(EEG data sec)']
@@ -129,6 +129,20 @@ class Events:
                     if end_sample <= raw_segment.n_times:
                         segment_data, _ = raw_segment[:, start_sample:end_sample]
                         segments.append(segment_data)
+
+                # trigger_codes = relative_times[:,0]
+                sfreq = raw_segment.info['sfreq']
+                condition_labels = [1 for i in range(len(relative_times))]
+                duration = [2 for i in range(len(relative_times))]
+                trigger_samples = (relative_times * sfreq).astype(int)
+                EEG_events = np.column_stack((trigger_samples, np.zeros_like(trigger_samples), condition_labels))
+                eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
+                raw_segment.plot(duration = 10.0, events = EEG_events, title = f"{directory_name}", event_id = eventIDs)
+                # mne.Epochs(raw_segment, EEG_events, eventIDs, 0.0, 2.0, 0.0)
+
+                #add all data together, events on time + time of ending last event
+
+
                 combined_segments = np.concatenate(segments, axis=1)
                 info = raw_segment.info.copy()
                 new_raw = mne.io.RawArray(combined_segments, info)

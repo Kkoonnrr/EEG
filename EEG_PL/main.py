@@ -19,9 +19,9 @@ if __name__ == "__main__":
     events = Events('small',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.edf',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.md.csv')
-    # events.create_trial_files()
-    # events.create_eeg_events_files()
-    names = ['see_tree_with_blank', 'see_tree_without_blank']
+    events.create_trial_files()
+    events.create_eeg_events_files()
+    names = ['see_tree_without_blank']
     # events_duration = events.create_start_stop_df_for_events()
     for name in names:
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         ica = mne.preprocessing.ICA(n_components=20, random_state=97, max_iter=800)
         ica.fit(raw)
         ica.plot_components()
-        ica.exclude = [0]
+        ica.exclude = [1]
         raw_ica = ica.apply(raw)
         raw_ica.plot()
         ...

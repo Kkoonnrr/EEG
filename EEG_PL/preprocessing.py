@@ -8,6 +8,8 @@ class Preprocessing:
         self.eeg_data = eeg_data
         self.eye_det_data = eye_det_data
 
+    eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
+
     bandwidth = {"delta": (0.5, 4),
                  "theta": (4, 8),
                  "alpha": (8, 12),
@@ -16,5 +18,9 @@ class Preprocessing:
                  "gamma": (30, 100)}
 
     EEG_data_labels = {}
+
+    def load_annotations(self):
+        pass
+
 
 
