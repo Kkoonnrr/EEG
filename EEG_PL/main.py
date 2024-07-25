@@ -19,8 +19,15 @@ if __name__ == "__main__":
     events = Events('small',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.edf',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.md.csv')
-    events.create_trial_files()
-    events.create_eeg_events_files()
+    # events.create_trial_files()
+    # events.create_eeg_events_files()
+    preprocessing = Preprocessing()
+    preprocessing.divide_to_events()
+
+
+
+
+
     names = ['see_tree_without_blank']
     # events_duration = events.create_start_stop_df_for_events()
     for name in names:
