@@ -29,23 +29,23 @@ if __name__ == "__main__":
 
 
     names = ['see_tree_without_blank']
-    # events_duration = events.create_start_stop_df_for_events()
-    for name in names:
-
-        raw = mne.io.read_raw_fif(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{name}_raw.fif', preload=True)
-        montage = mne.channels.make_standard_montage('standard_1020')
-        raw.set_montage(montage, on_missing='ignore')
-
-        raw.filter(0.1, 40, fir_design='firwin')
-
-        raw.compute_psd(fmax=50).plot(picks="data", exclude="bads", amplitude=False)
-        raw.plot(duration=5, n_channels=30)
-        #
-        ica = mne.preprocessing.ICA(n_components=20, random_state=97, max_iter=800)
-        ica.fit(raw)
-        ica.plot_components()
-        ica.exclude = [1]
-        raw_ica = ica.apply(raw)
-        raw_ica.plot()
-        ...
+    # # events_duration = events.create_start_stop_df_for_events()
+    # for name in names:
+    #
+    #     raw = mne.io.read_raw_fif(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{name}_raw.fif', preload=True)
+    #     montage = mne.channels.make_standard_montage('standard_1020')
+    #     raw.set_montage(montage, on_missing='ignore')
+    #
+    #     raw.filter(0.1, 40, fir_design='firwin')
+    #
+    #     raw.compute_psd(fmax=50).plot(picks="data", exclude="bads", amplitude=False)
+    #     raw.plot(duration=5, n_channels=30)
+    #     #
+    #     ica = mne.preprocessing.ICA(n_components=20, random_state=97, max_iter=800)
+    #     ica.fit(raw)
+    #     ica.plot_components()
+    #     ica.exclude = [1]
+    #     raw_ica = ica.apply(raw)
+    #     raw_ica.plot()
+    #     ...
         # ica.plot_properties(raw, picks=ica.exclude)

@@ -4,22 +4,24 @@ import mne
 from pathlib import Path
 from mne.preprocessing import ICA
 from mne.time_frequency import tfr_morlet
+import matplotlib as mpl
+from scipy.signal import welch
+
+mpl.use("MacOSX")
+
+eeg_channels = {'Frontal': ['Fz', 'F7', 'F3', 'Fp1', 'F8', 'F4', 'Fp2', 'FC1', 'FC2'],
+                'Temporal': ['FT10', 'FT9', 'T7', 'T8', 'FC6', 'FC5'],
+                'Parietal': ['Cz', 'C3', 'CP5', 'CP1', 'P3', 'P7', 'Pz', 'P8', 'P4', 'CP2', 'CP6', 'C4', ],
+                'Occipital': ['O1', 'Oz', 'O2', 'PO10', 'PO9']}
 
 
 class Preprocessing:
-    def __init__(self, eeg_data = None, eye_det_data = None):
+    def __init__(self, eeg_data=None, eye_det_data=None):
         self.eeg_data = eeg_data
         self.eye_det_data = eye_det_data
         self.sfreq = 128
 
     eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
-
-    bandwidth = {"delta": (0.5, 4),
-                 "theta": (4, 8),
-                 "alpha": (8, 12),
-                 "sigma": (12, 16),
-                 "beta": (16, 30),
-                 "gamma": (30, 100)}
 
     EEG_data_labels = {}
 
@@ -35,14 +37,14 @@ class Preprocessing:
         for file in files:
             raw = mne.io.read_raw_fif(file, preload=True)
             if 'tree' in file.name:
-                labels = [1 for i in range(int(len(raw)/raw.info['sfreq']/2))]
+                labels = [1 for i in range(int(len(raw) / raw.info['sfreq'] / 2))]
             elif 'sun' in file.name:
                 labels = [2 for i in range(int(len(raw) / raw.info['sfreq'] / 2))]
             elif 'river' in file.name:
                 labels = [3 for i in range(int(len(raw) / raw.info['sfreq'] / 2))]
             glob_labels.extend(labels)
-            time_temp = [i*2+time for i in range(len(labels))]
-            time = max(time_temp)+2
+            time_temp = [i * 2 + time for i in range(len(labels))]
+            time = max(time_temp) + 2
             glob_time.extend(time_temp)
             glopbal_raw.append(raw)
         event_labels = pd.DataFrame({'Time': glob_time, 'Index': glob_labels})
@@ -53,57 +55,79 @@ class Preprocessing:
         labels, raw_data = self.load_annotations()
         montage = mne.channels.make_standard_montage('standard_1020')
         raw_data.set_montage(montage, on_missing='ignore')
-        raw_data.filter(0.1, 40, fir_design='firwin')
+        raw_data.filter(l_freq=0.2, h_freq=None, fir_design='firwin')
+        raw_data.filter(l_freq=None, h_freq=40, fir_design='firwin')
         event_times_s = labels.iloc[:, 0]
         event_time_freq = (event_times_s * self.sfreq).astype(int)
         event_type = (labels.iloc[:, 1]).astype(int)
 
         EEGevents = np.column_stack((event_time_freq, np.zeros_like(event_time_freq), event_type))
-        #raw_data.plot(duration = 10.0, events = EEGevents, title = 'EEG with events', event_id = self.eventIDs)
+        # raw_data.plot(duration = 10.0, events = EEGevents, title = 'EEG with events', event_id = self.eventIDs)
 
-        epochs = mne.Epochs(raw_data, EEGevents, self.eventIDs, -.1, 2, (-.1,0),reject = None)
-        # epochs.plot(events = EEGevents, title = 'EEG with events', event_id = self.eventIDs)
-        # con1 = epochs['River']
-        # con2 = epochs['Sun']
-        # con3 = epochs['Tree']
-        #
-        # avg_con1 = con1.average()
-        # avg_con2 = con2.average()
-        # avg_con3 = con3.average()
-        #
-        # avg_con1.plot(time_unit='ms')
-        # avg_con2.plot(time_unit='ms')
-        # avg_con3.plot(time_unit='ms')
+        epochs = mne.Epochs(raw=raw_data, events=EEGevents, event_id=self.eventIDs, tmin=0, tmax=2, baseline=(0, 0))
+        # epochs.plot(events=EEGevents, title='EEG with events', event_id=self.eventIDs)
 
-        ica = ICA(n_components=20, max_iter='auto', random_state=5)
+        ica = ICA(n_components=0.95, max_iter='auto', random_state=4)
         ica.fit(epochs)
         # ica.plot_components()
+        eog_indices, eog_scores = ica.find_bads_eog(epochs, ch_name='Fz', threshold=1.7)
+        ica.exclude = eog_indices
         ica.apply(epochs.load_data())
+        # ica.plot_scores(eog_scores)
 
         epochs.set_eeg_reference('average', projection=True)
         epochs.apply_proj()
 
-        epochs.plot(title='EEG with events', event_id=self.eventIDs)
-        # con1 = epochs['River']
-        # con2 = epochs['Sun']
-        # con3 = epochs['Tree']
-        #
-        # avg_con1 = con1.average()
-        # avg_con2 = con2.average()
-        # avg_con3 = con3.average()
-        #
-        # avg_con1.plot(time_unit='ms')
-        # avg_con2.plot(time_unit='ms')
-        # avg_con3.plot(time_unit='ms')
 
-        ...
+        # epochs.plot_image(combine="mean")
+        # epochs.average().plot_joint()
+
+        # epochs.plot(events=EEGevents, title='EEG after', event_id=self.eventIDs)
+        # epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
+
+        self.features_extraction('PSD', epochs)
+
+    def features_extraction(self, method, epoch_data):
+        match method:
+            case "PSD":
+                features = self.get_psd_features(epoch_data)
+            case "Statistical":
+                features = self.get_statistical_features(epoch_data)
+
+    def get_psd_features(self, data):
+
+        classes = ['Tree', 'Sun', 'River']
+
+        bandwidth = {"delta": (0.5, 4),
+                     "theta": (4, 8),
+                     "alpha": (8, 12),
+                     "sigma": (12, 16),
+                     "beta": (16, 30),
+                     "gamma": (30, 60)}
+
+        features = []
+        for item_class in classes:
+            item_epochs = data[item_class].get_data()
+            channel_names = data.ch_names
+            for epoch in item_epochs:
+                psd_features = []
+                for channel_name, channel_data in zip(channel_names, epoch):
+                    nperseg = min(len(channel_data), 128)
+                    freqs, psd = welch(channel_data, fs = 128, nperseg=nperseg, nfft = nperseg)
+
+                    band_powers = []
+                    for fmin, fmax in bandwidth.values():
+                        idx_min = np.argmax(freqs >= fmin)
+                        idx_max = np.argmax(freqs >= fmax)
+                        band_powers.append(np.sum(psd[idx_min:idx_max]))
+                    psd_features.append(band_powers)
+                features.append(np.array(psd_features).flatten())
+            # column_names = [f'{ch}_{band}' for ch in ]
 
 
 
+        return features
 
-
-
-
-
-
-
+    def get_statistical_features(self, data):
+        features = []
+        return features
