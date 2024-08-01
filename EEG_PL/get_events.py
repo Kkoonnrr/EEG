@@ -5,7 +5,10 @@ import mne
 import numpy as np
 
 
-
+eeg_channels = ['Fz', 'F7', 'F3', 'Fp1', 'F8', 'F4', 'Fp2', 'FC1', 'FC2',
+                'FT10', 'FT9', 'T7', 'T8', 'FC6', 'FC5''Cz', 'C3', 'CP5',
+                'CP1', 'P3', 'P7', 'Pz', 'P8', 'P4', 'CP2', 'CP6', 'C4',
+                'O1', 'Oz', 'O2', 'PO10', 'PO9']
 
 def to_date(date: str):
     return datetime.strptime(date, '%H:%M:%S.%f')

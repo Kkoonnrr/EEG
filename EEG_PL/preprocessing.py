@@ -6,6 +6,10 @@ from mne.preprocessing import ICA
 from mne.time_frequency import tfr_morlet
 import matplotlib as mpl
 from scipy.signal import welch
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import f_classif
+from sklearn.decomposition import PCA
+from scipy.stats import kurtosis, skew
 
 mpl.use("MacOSX")
 
@@ -78,25 +82,34 @@ class Preprocessing:
         epochs.set_eeg_reference('average', projection=True)
         epochs.apply_proj()
 
-
         # epochs.plot_image(combine="mean")
         # epochs.average().plot_joint()
 
         # epochs.plot(events=EEGevents, title='EEG after', event_id=self.eventIDs)
         # epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
 
-        self.features_extraction('PSD', epochs)
+        self.features_extraction('Statistical', epochs)
 
     def features_extraction(self, method, epoch_data):
         match method:
             case "PSD":
-                features = self.get_psd_features(epoch_data)
+                features, classes = self.get_psd_features(epoch_data)
             case "Statistical":
-                features = self.get_statistical_features(epoch_data)
+                features, classes = self.get_statistical_features(epoch_data)
+
+        features_reduced = SelectKBest(f_classif, k=10)
+        features_reduced.fit(features, classes)
+        cols = features_reduced.get_support(indices=True)
+        features_reduced_best = features.iloc[:, cols]
+
+        pca = PCA(n_components=10)
+        pca.fit(features, classes)
+        features_reduced_pca = pca.transform(features)
+        ...
 
     def get_psd_features(self, data):
 
-        classes = ['Tree', 'Sun', 'River']
+        classes_list = []
 
         bandwidth = {"delta": (0.5, 4),
                      "theta": (4, 8),
@@ -106,15 +119,14 @@ class Preprocessing:
                      "gamma": (30, 60)}
 
         features = []
-        for item_class in classes:
+        for item_class in self.eventIDs.keys():
             item_epochs = data[item_class].get_data()
             channel_names = data.ch_names
             for epoch in item_epochs:
                 psd_features = []
                 for channel_name, channel_data in zip(channel_names, epoch):
                     nperseg = min(len(channel_data), 128)
-                    freqs, psd = welch(channel_data, fs = 128, nperseg=nperseg, nfft = nperseg)
-
+                    freqs, psd = welch(channel_data, fs=128, nperseg=nperseg, nfft=nperseg)
                     band_powers = []
                     for fmin, fmax in bandwidth.values():
                         idx_min = np.argmax(freqs >= fmin)
@@ -122,12 +134,31 @@ class Preprocessing:
                         band_powers.append(np.sum(psd[idx_min:idx_max]))
                     psd_features.append(band_powers)
                 features.append(np.array(psd_features).flatten())
-            # column_names = [f'{ch}_{band}' for ch in ]
-
-
-
-        return features
+                classes_list.append(self.eventIDs[item_class])
+        column_names = [f'{ch}_{band}' for ch in channel_names for band in bandwidth.keys()]
+        features_df = pd.DataFrame(features, columns=column_names)
+        return features_df, classes_list
 
     def get_statistical_features(self, data):
+        classes_list = []
         features = []
-        return features
+        stat_list = ['mean', 'median', 'variance', 'std', 'rms', 'skew', 'kurt']
+        for item_class in self.eventIDs.keys():
+            item_epochs = data[item_class].get_data()
+            channel_names = data.ch_names
+            for epoch in item_epochs:
+                channel_stat = []
+                for channel_name, channel_data in zip(channel_names, epoch):
+                    mean = np.mean(channel_data)
+                    median = np.median(channel_data)
+                    variance = np.var(channel_data)
+                    std = np.std(channel_data)
+                    rms = np.sqrt(np.mean(channel_data ** 2))
+                    skewness = skew(channel_data)
+                    kurtosis_stat = kurtosis(channel_data)
+                    channel_stat.append([mean, median, variance, std, rms, skewness, kurtosis_stat])
+                features.append(np.array(channel_stat).flatten())
+                classes_list.append(self.eventIDs[item_class])
+        column_names = [f'{ch}_{stat}' for ch in channel_names for stat in stat_list]
+        features_df = pd.DataFrame(features, columns=column_names)
+        return features_df, classes_list
