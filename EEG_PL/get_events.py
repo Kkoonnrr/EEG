@@ -107,7 +107,7 @@ class Events:
         raw_csv = pd.read_csv(self.eeg_csv, nrows=1)
         start_time = datetime.fromtimestamp(float(raw_csv.columns[1].split(":")[1])).strftime('%H:%M:%S.%f')[:-3]
         raw = mne.io.read_raw_edf(self.eeg_edf, preload=True)
-        raw.pick(eg_channels)
+        raw.pick(eeg_channels)
         events_duration = self.create_start_stop_df_for_events(start_time)
         all_data = []
         for event_duration in events_duration.iterrows():
