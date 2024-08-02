@@ -1,17 +1,7 @@
 from preprocessing import Preprocessing
-import numpy as np
-import mne
 import matplotlib as mpl
-import matplotlib.pyplot as plt
-import pandas as pd
-import os
-from datetime import datetime, timedelta
-from scipy.signal import welch
-from mne.time_frequency import psd_array_multitaper
-from scipy.integrate import simps
-from mne.preprocessing import ICA
-from mne.time_frequency import tfr_morlet
 from get_events import Events
+from ml_models import MlModels
 
 mpl.use("MacOSX")
 
@@ -19,10 +9,13 @@ if __name__ == "__main__":
     events = Events('small',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.edf',
                     '../Data/EEG_PL/11.07/EEG/see all_EPOCFLEX_229567_2024.07.11T14.40.32+08.00.md.csv')
-    # events.create_trial_files()
-    # events.create_eeg_events_files()
+    events.create_trial_files()
+    events.create_eeg_events_files()
     preprocessing = Preprocessing()
-    preprocessing.divide_to_events()
+    pca, best, labels = preprocessing.divide_to_events()
+    mlmodels = MlModels(best, labels)
+    mlmodels.kfold_test()
+    mlmodels.plot_data()
 
 
 

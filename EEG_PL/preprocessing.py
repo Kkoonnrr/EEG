@@ -24,6 +24,9 @@ class Preprocessing:
         self.eeg_data = eeg_data
         self.eye_det_data = eye_det_data
         self.sfreq = 128
+        self.pca_features = None
+        self.best_features = None
+        self.classes = None
 
     eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
 
@@ -88,7 +91,8 @@ class Preprocessing:
         # epochs.plot(events=EEGevents, title='EEG after', event_id=self.eventIDs)
         # epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
 
-        self.features_extraction('Statistical', epochs)
+        self.pca_features, self.best_features, self.classes = self.features_extraction('PSD', epochs)
+        return self.pca_features, self.best_features, self.classes
 
     def features_extraction(self, method, epoch_data):
         match method:
@@ -97,15 +101,15 @@ class Preprocessing:
             case "Statistical":
                 features, classes = self.get_statistical_features(epoch_data)
 
-        features_reduced = SelectKBest(f_classif, k=10)
+        features_reduced = SelectKBest(f_classif, k=3)
         features_reduced.fit(features, classes)
         cols = features_reduced.get_support(indices=True)
         features_reduced_best = features.iloc[:, cols]
 
-        pca = PCA(n_components=10)
+        pca = PCA(n_components=3)
         pca.fit(features, classes)
         features_reduced_pca = pca.transform(features)
-        ...
+        return features_reduced_pca, features_reduced_best, classes
 
     def get_psd_features(self, data):
 

@@ -3,15 +3,28 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import mne
 import numpy as np
-
+import shutil
 
 eeg_channels = ['Fz', 'F7', 'F3', 'Fp1', 'F8', 'F4', 'Fp2', 'FC1', 'FC2',
-                'FT10', 'FT9', 'T7', 'T8', 'FC6', 'FC5''Cz', 'C3', 'CP5',
+                'FT10', 'FT9', 'T7', 'T8', 'FC6', 'FC5', 'Cz', 'C3', 'CP5',
                 'CP1', 'P3', 'P7', 'Pz', 'P8', 'P4', 'CP2', 'CP6', 'C4',
                 'O1', 'Oz', 'O2', 'PO10', 'PO9']
 
+
 def to_date(date: str):
     return datetime.strptime(date, '%H:%M:%S.%f')
+
+
+def clear_folder(folder_path):
+    folder = Path(folder_path)
+    for item in folder.iterdir():
+        try:
+            if item.is_file() or item.is_symlink():
+                item.unlink()  # Remove the file or link
+            elif item.is_dir():
+                shutil.rmtree(item)  # Remove the directory and its contents
+        except Exception as e:
+            print(f'Failed to delete {item}. Reason: {e}')
 
 
 class Events:
@@ -104,6 +117,7 @@ class Events:
         return event_duration
 
     def create_eeg_events_files(self):
+        clear_folder('../Data/EEG_PL/11.07/EEG/EEG_Event_data')
         raw_csv = pd.read_csv(self.eeg_csv, nrows=1)
         start_time = datetime.fromtimestamp(float(raw_csv.columns[1].split(":")[1])).strftime('%H:%M:%S.%f')[:-3]
         raw = mne.io.read_raw_edf(self.eeg_edf, preload=True)
@@ -115,7 +129,8 @@ class Events:
             start_time = event_duration[1]['start_of_the_event(EEG data sec)']
             end_time = event_duration[1]['end_of_the_event(EEG data sec)']
             raw_segment = raw.copy().crop(tmin=start_time, tmax=end_time)
-            raw_segment.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_with_blank_raw.fif', overwrite=True)
+            raw_segment.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_with_blank_raw.fif',
+                             overwrite=True)
 
             for index, data in enumerate(self.experiment_data.items()):
                 name, ex_data = data
@@ -125,7 +140,7 @@ class Events:
                 relative_times = ex_data['Relative Time']
                 segments = []
                 for times in relative_times:
-                    start_sample = int((times+2) * sfreq)
+                    start_sample = int((times + 2) * sfreq)
                     end_sample = start_sample + segment_samples
                     if end_sample <= raw_segment.n_times:
                         segment_data, _ = raw_segment[:, start_sample:end_sample]
@@ -138,16 +153,13 @@ class Events:
                 trigger_samples = (relative_times * sfreq).astype(int)
                 EEG_events = np.column_stack((trigger_samples, np.zeros_like(trigger_samples), condition_labels))
                 eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
-                raw_segment.plot(duration = 10.0, events = EEG_events, title = f"{directory_name}", event_id = eventIDs)
+                raw_segment.plot(duration=10.0, events=EEG_events, title=f"{directory_name}", event_id=eventIDs)
                 # mne.Epochs(raw_segment, EEG_events, eventIDs, 0.0, 2.0, 0.0)
 
-                #add all data together, events on time + time of ending last event
-
+                # add all data together, events on time + time of ending last event
 
                 combined_segments = np.concatenate(segments, axis=1)
                 info = raw_segment.info.copy()
                 new_raw = mne.io.RawArray(combined_segments, info)
                 new_raw.save(f'../Data/EEG_PL/11.07/EEG/EEG_Event_data/{directory_name}_without_blank_raw.fif',
-                                 overwrite=True)
-
-
+                             overwrite=True)
