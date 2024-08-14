@@ -5,11 +5,17 @@ from pathlib import Path
 from mne.preprocessing import ICA
 from mne.time_frequency import tfr_morlet
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from scipy.signal import welch
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import f_classif
 from sklearn.decomposition import PCA
 from scipy.stats import kurtosis, skew
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
+import seaborn as sns
+
 
 mpl.use("MacOSX")
 
@@ -92,23 +98,29 @@ class Preprocessing:
         # epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
 
         self.pca_features, self.best_features, self.classes = self.features_extraction('PSD', epochs)
+        # self.autocorr()
         return self.pca_features, self.best_features, self.classes
 
     def features_extraction(self, method, epoch_data):
+        scaler_minmax = MinMaxScaler()
+        scaler_standard = StandardScaler()
         match method:
             case "PSD":
                 features, classes = self.get_psd_features(epoch_data)
             case "Statistical":
                 features, classes = self.get_statistical_features(epoch_data)
 
-        features_reduced = SelectKBest(f_classif, k=3)
+        features_reduced = SelectKBest(f_classif, k=10)
         features_reduced.fit(features, classes)
         cols = features_reduced.get_support(indices=True)
         features_reduced_best = features.iloc[:, cols]
+        features_reduced_best = scaler_minmax.fit_transform(features_reduced_best)
 
         pca = PCA(n_components=3)
         pca.fit(features, classes)
         features_reduced_pca = pca.transform(features)
+        features_reduced_pca = scaler_minmax.fit_transform(features_reduced_pca)
+
         return features_reduced_pca, features_reduced_best, classes
 
     def get_psd_features(self, data):
@@ -124,7 +136,7 @@ class Preprocessing:
 
         features = []
         for item_class in self.eventIDs.keys():
-            item_epochs = data[item_class].get_data()
+            item_epochs = data[item_class].get_data(copy = True)
             channel_names = data.ch_names
             for epoch in item_epochs:
                 psd_features = []
@@ -148,7 +160,7 @@ class Preprocessing:
         features = []
         stat_list = ['mean', 'median', 'variance', 'std', 'rms', 'skew', 'kurt']
         for item_class in self.eventIDs.keys():
-            item_epochs = data[item_class].get_data()
+            item_epochs = data[item_class].get_data(copy = True)
             channel_names = data.ch_names
             for epoch in item_epochs:
                 channel_stat = []
@@ -166,3 +178,10 @@ class Preprocessing:
         column_names = [f'{ch}_{stat}' for ch in channel_names for stat in stat_list]
         features_df = pd.DataFrame(features, columns=column_names)
         return features_df, classes_list
+
+    def autocorr(self):
+        LE = LabelEncoder()
+        df_encoded = pd.DataFrame(self.best_features)
+        df_encoded['class'] = LE.fit_transform(self.classes)
+        hm = sns.heatmap(df_encoded.corr(numeric_only=True))
+        plt.show()

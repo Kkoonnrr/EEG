@@ -14,7 +14,7 @@ if __name__ == "__main__":
     preprocessing = Preprocessing()
     pca, best, labels = preprocessing.divide_to_events()
     mlmodels = MlModels(best, labels)
-    mlmodels.kfold_test()
+    # mlmodels.hipertuning()
     mlmodels.plot_data()
 
 
