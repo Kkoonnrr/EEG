@@ -75,30 +75,27 @@ class Preprocessing:
         event_type = (labels.iloc[:, 1]).astype(int)
 
         EEGevents = np.column_stack((event_time_freq, np.zeros_like(event_time_freq), event_type))
-        # raw_data.plot(duration = 10.0, events = EEGevents, title = 'EEG with events', event_id = self.eventIDs)
 
         epochs = mne.Epochs(raw=raw_data, events=EEGevents, event_id=self.eventIDs, tmin=0, tmax=2, baseline=(0, 0))
-        # epochs.plot(events=EEGevents, title='EEG with events', event_id=self.eventIDs)
 
         ica = ICA(n_components=0.95, max_iter='auto', random_state=4)
         ica.fit(epochs)
-        # ica.plot_components()
+        ica.plot_components()
         eog_indices, eog_scores = ica.find_bads_eog(epochs, ch_name='Fz', threshold=1.7)
         ica.exclude = eog_indices
         ica.apply(epochs.load_data())
-        # ica.plot_scores(eog_scores)
+        ica.plot_scores(eog_scores)
 
         epochs.set_eeg_reference('average', projection=True)
         epochs.apply_proj()
 
-        # epochs.plot_image(combine="mean")
-        # epochs.average().plot_joint()
+        epochs.plot_image(combine="mean")
+        epochs.average().plot_joint()
 
-        # epochs.plot(events=EEGevents, title='EEG after', event_id=self.eventIDs)
-        # epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
+        epochs.plot(events=EEGevents, title='EEG after', event_id=self.eventIDs)
+        epochs['Tree'].plot(events=EEGevents, title='EEG after for trees', event_id=self.eventIDs)
 
         self.pca_features, self.best_features, self.classes = self.features_extraction('PSD', epochs)
-        # self.autocorr()
         return self.pca_features, self.best_features, self.classes
 
     def features_extraction(self, method, epoch_data):

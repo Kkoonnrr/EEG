@@ -57,21 +57,20 @@ class MlModels:
                             warm_start=warm_start,
                             max_iter=2000,
                             random_state=42)
-        # k_folds = KFold(n_splits=5, shuffle=True)
-        # scores = cross_val_score(mlp, self.X, self.Y, cv=k_folds)
+        k_folds = KFold(n_splits=5, shuffle=True)
+        scores = cross_val_score(mlp, self.X, self.Y, cv=k_folds)
         return mlp
 
     def cnn(self):
-        # model = Sequential()
-        # model.add(Convolution1D(nb_filter=32, filter_length=3, input_shape=X_train.shape[1:3], activation='relu'))
-        # model.add(Convolution1D(nb_filter=16, filter_length=1, activation='relu'))
-        # model.add(Flatten())
-        # model.add(Dropout(dropout_rate))
-        # model.add(Dense(128, input_dim=input_dimension, kernel_initializer=hidden_initializer, activation='relu'))
-        # model.add(Dropout(dropout_rate))
-        # model.add(Dense(64, kernel_initializer=hidden_initializer, activation='relu'))
-        # model.add(Dense(2, kernel_initializer=hidden_initializer, activation='softmax'))
-        pass
+        model = Sequential()
+        model.add(Convolution1D(nb_filter=32, filter_length=3, input_shape=X_train.shape[1:3], activation='relu'))
+        model.add(Convolution1D(nb_filter=16, filter_length=1, activation='relu'))
+        model.add(Flatten())
+        model.add(Dropout(dropout_rate))
+        model.add(Dense(128, input_dim=input_dimension, kernel_initializer=hidden_initializer, activation='relu'))
+        model.add(Dropout(dropout_rate))
+        model.add(Dense(64, kernel_initializer=hidden_initializer, activation='relu'))
+        model.add(Dense(2, kernel_initializer=hidden_initializer, activation='softmax'))
 
     def svc(self, trial):
         c=trial.suggest_float('C', 1e-1, 2)
@@ -84,18 +83,18 @@ class MlModels:
 
 
     def xgboost(self, trial):
-        # model = Sequential()
-        # model.add(LSTM(128, input_shape=(18,)))
-        # model.add(Dense(len(self.X), activation='softmax'))
-        # model.compile(loss='categorical_crossentropy', optimizer='adam')
-        # return model
+        model = Sequential()
+        model.add(LSTM(128, input_shape=(18,)))
+        model.add(Dense(len(self.X), activation='softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='adam')
+        return model
         pass
 
     def cross_validation(self, trial):
         k_folds = KFold(n_splits=5, shuffle=True)
         scores = []
         mlp = self.mlp(trial)
-        # svc = self.svc(trial)
+        svc = self.svc(trial)
         for train_index, val_index in k_folds.split(self.X):
             X_train, X_val = self.X.iloc[train_index], self.X.iloc[val_index]
             Y_train, Y_val = self.Y.iloc[train_index], self.Y.iloc[val_index]
@@ -103,8 +102,8 @@ class MlModels:
             mlp = mlp.fit(X_train, np.ravel(Y_train))
             scores.append(mlp.score(X_val, np.ravel(Y_val)))
 
-            # svc = svc.fit(X_train, np.ravel(Y_train))
-            # scores.append(svc.score(X_val, np.ravel(Y_val)))
+            svc = svc.fit(X_train, np.ravel(Y_train))
+            scores.append(svc.score(X_val, np.ravel(Y_val)))
 
 
         # print(np.mean(scores))

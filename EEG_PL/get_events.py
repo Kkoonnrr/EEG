@@ -123,7 +123,6 @@ class Events:
         events["Relative Time"] = events["Time Of Experiment"] - events["Time Of Experiment"].iloc[0]
         return events
 
-    # TODO
     def load_experiment_data(self):
         experiment_data = {}
         for directory in self.directories:
@@ -181,7 +180,7 @@ class Events:
                         segment_data, _ = raw_segment[:, start_sample:end_sample]
                         segments.append(segment_data)
 
-                # trigger_codes = relative_times[:,0]
+                trigger_codes = relative_times[:,0]
                 sfreq = raw_segment.info['sfreq']
                 condition_labels = [1 for i in range(len(relative_times))]
                 duration = [2 for i in range(len(relative_times))]
@@ -189,7 +188,7 @@ class Events:
                 EEG_events = np.column_stack((trigger_samples, np.zeros_like(trigger_samples), condition_labels))
                 eventIDs = {"Tree": 1, "Sun": 2, "River": 3}
                 raw_segment.plot(duration=10.0, events=EEG_events, title=f"{directory_name}", event_id=eventIDs)
-                # mne.Epochs(raw_segment, EEG_events, eventIDs, 0.0, 2.0, 0.0)
+                mne.Epochs(raw_segment, EEG_events, eventIDs, 0.0, 2.0, 0.0)
 
                 # add all data together, events on time + time of ending last event
 
